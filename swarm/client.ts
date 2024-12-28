@@ -13,11 +13,12 @@ class PixelClient {
   private maxRetries = 3;
   private backoffMultiplier = 1.5;
   private maxBackoffDelay = 30000; // 30 seconds
+  private minTimeBetweenRequests = 500;
   private token = "";
 
   constructor() {
     // Don't set initial rate limit - will be set dynamically
-    this.rateLimiter = new RateLimiter(0);
+    this.rateLimiter = new RateLimiter(this.minTimeBetweenRequests); // Set minimum 5 second floor
   }
 
   async register() {
@@ -200,7 +201,9 @@ class PixelClient {
         const data = await response.json();
         if (DEBUG) console.log(data);
         if (response.status === 429 && data.try_in !== undefined) {
-          this.rateLimiter.updateMinTime(data.try_in * 1000);
+          this.rateLimiter.updateMinTime(
+            Math.max(data.try_in * 1000, this.minTimeBetweenRequests),
+          );
           console.error(`[Rate Limit] Try in ${data.try_in}s`);
         } else {
           throw new Error(`[HTTP Error] Status: ${response.status}`);
@@ -220,9 +223,11 @@ class RateLimiter {
   private lastRequestTime = 0;
   private minTime: number;
   private dynamicWaitTime: number;
+  private minTimeBetweenRequests: number;
 
   constructor(minTimeBetweenRequests: number) {
     this.minTime = minTimeBetweenRequests;
+    this.minTimeBetweenRequests = minTimeBetweenRequests;
     this.dynamicWaitTime = minTimeBetweenRequests;
   }
 
@@ -238,7 +243,7 @@ class RateLimiter {
   }
 
   updateMinTime(newMinTime: number) {
-    this.minTime = newMinTime;
+    this.minTime = Math.max(newMinTime, this.minTimeBetweenRequests); // Never go below 5 seconds
     this.dynamicWaitTime = this.minTime * 1.1; // Add 10% buffer
   }
 
