@@ -21,29 +21,36 @@ class PixelClient {
   }
 
   async register() {
-    try {
-      const hardwareId = await getHWID();
-      const response = await fetch(`${SERVER_URL}/register`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${BEARER_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          hardwareId,
-        }),
-      });
+    while (true) {
+      try {
+        const hardwareId = await getHWID();
+        const response = await fetch(`${SERVER_URL}/register`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${BEARER_TOKEN}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            hardwareId,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error(`Registration failed: ${response.status}`);
+        if (!response.ok) {
+          throw new Error(`Registration failed: ${response.status}`);
+        }
+
+        const data = await response.json();
+        this.token = data.token;
+        console.log("[Info] Successfully registered with token:", this.token);
+        return;
+      } catch (error) {
+        console.error(
+          "[Error] Failed to register - server may be down:",
+          error,
+        );
+        console.log("[Info] Retrying registration in 10 seconds...");
+        await sleep(10000);
       }
-
-      const data = await response.json();
-      this.token = data.token;
-      console.log("[Info] Successfully registered with token:", this.token);
-    } catch (error) {
-      console.error("[Error] Failed to register:", error);
-      throw error;
     }
   }
 
@@ -119,12 +126,12 @@ class PixelClient {
           console.error("[Error] Failed to notify job completion:", error);
         }
       } catch (error) {
-        console.error("[Error] Critical error occurred:", error);
-        console.error(
-          "[Error] Stack trace:",
-          error instanceof Error ? error.stack : "No stack trace available",
-        );
-        await sleep(5000);
+        console.error("[Error] Server may be down:", error);
+        console.log("[Info] Waiting 10 seconds before retry...");
+        await sleep(10000);
+        try {
+          await this.register(); // Re-register if server comes back up
+        } catch {}
       }
     }
   }
