@@ -176,7 +176,7 @@ new Elysia()
     }),
   )
   .onBeforeHandle(({ bearer, set, ip, path }) => {
-    if (path === "/register") {
+    if (path === "/register" || path === "/jobs") {
       if (!bearer) {
         set.status = 400;
         set.headers["WWW-Authenticate"] =
@@ -272,6 +272,29 @@ new Elysia()
     console.log(bot);
 
     return { token };
+  })
+  .get("/jobs", () => {
+    const workingRegions = Array.from(bots.values())
+      .filter(
+        (
+          bot,
+        ): bot is BotInfo & {
+          currentJob: NonNullable<BotInfo["currentJob"]>;
+        } => bot.currentJob !== undefined,
+      )
+      .map((bot) => ({
+        startX: bot.currentJob.startX,
+        startY: bot.currentJob.startY,
+        regionSize: 10,
+        pixels: bot.currentJob.pixels,
+        hardwareId: bot.hardwareId,
+        lastSeen: bot.lastSeen,
+      }));
+
+    return {
+      workingRegions,
+      botCount: bots.size,
+    };
   })
   .listen(process.env.PORT || 3000);
 
