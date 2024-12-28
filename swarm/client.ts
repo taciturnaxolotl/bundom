@@ -5,6 +5,7 @@ const BEARER_TOKEN = process.env.BEARER_TOKEN;
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
 const PIXEL_SERVER_URL =
   process.env.PIXEL_SERVER_URL || "https://place.danieldb.uk";
+const DEBUG = process.env.DEBUG === "true";
 
 class PixelClient {
   private rateLimiter: RateLimiter;
@@ -189,7 +190,7 @@ class PixelClient {
       });
       if (!response.ok) {
         const data = await response.json();
-        console.log(data);
+        if (DEBUG) console.log(data);
         if (response.status === 429 && data.try_in !== undefined) {
           this.rateLimiter.updateMinTime(data.try_in * 1000);
           console.error(`[Rate Limit] Try in ${data.try_in}s`);
