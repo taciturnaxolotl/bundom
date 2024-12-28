@@ -184,6 +184,7 @@ new Elysia()
 
     const bot = bots.get(ip);
     if (!bot) {
+      console.log(`New bot registered: ${ip}`);
       bots.set(ip, {
         ip,
         lastSeen: new Date(),
