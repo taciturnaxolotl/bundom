@@ -158,7 +158,11 @@ new Elysia()
       mode: "combined",
     }),
   )
-  .use(cors())
+  .use(
+    cors({
+      origin: true,
+    }),
+  )
   .use(ip())
   .use(bearer())
   .use(
