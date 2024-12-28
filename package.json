@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@types/pngjs": "^6.0.5",
+    "bottleneck": "^2.19.5",
     "pngjs": "^7.0.0"
   }
 }
