@@ -169,7 +169,7 @@ new Elysia()
           if (Date.now() - bot.lastSeen.getTime() > 1000 * 60 * 2) {
             bots.delete(token);
             console.log(`Removed inactive bot ${token}`);
-            console.log(bot);
+            console.log({ ...bot, currentJob: undefined });
           }
         }
       },
