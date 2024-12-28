@@ -201,16 +201,17 @@ class PixelClient {
         if (DEBUG) console.log(data);
         if (response.status === 429 && data.try_in !== undefined) {
           this.rateLimiter.updateMinTime(data.try_in * 1000);
-          throw new Error(`[Rate Limit] Try in ${data.try_in}s`);
+          console.error(`[Rate Limit] Try in ${data.try_in}s`);
+        } else {
+          throw new Error(`[HTTP Error] Status: ${response.status}`);
         }
-        console.error(`[HTTP Error] Status: ${response.status}`);
       } else {
         console.log(`[Success] Set pixel at (${pixel.x}, ${pixel.y})`);
       }
     } catch (error) {
       console.error("[Error] Failed to set pixel:", error);
       console.error("[Error] Pixel details:", JSON.stringify(pixel));
-      throw error;
+      console.error(error);
     }
   }
 }
