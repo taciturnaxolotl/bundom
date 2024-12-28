@@ -244,10 +244,10 @@ new Elysia()
 
     return { message: "Job completed successfully" };
   })
-  .listen(3000);
+  .listen(process.env.PORT || 3000);
 
 // --- Start ---
-console.log("Server started on port 3000");
+console.log(`Server started on port ${process.env.PORT || 3000}`);
 console.log("Bearer token:", process.env.BEARER_TOKEN);
 console.log("Press Ctrl+C to stop the server");
 console.log("----\n");
