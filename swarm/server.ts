@@ -3,6 +3,7 @@ import { ip } from "elysia-ip";
 import { bearer } from "@elysiajs/bearer";
 import { cron } from "@elysiajs/cron";
 import { logger } from "@tqman/nice-logger";
+import cors from "@elysiajs/cors";
 import { PNG } from "pngjs";
 import { randomUUIDv7 } from "bun";
 
@@ -157,6 +158,7 @@ new Elysia()
       mode: "combined",
     }),
   )
+  .use(cors())
   .use(ip())
   .use(bearer())
   .use(
