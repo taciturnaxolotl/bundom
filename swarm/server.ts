@@ -51,31 +51,37 @@ const PIXEL_SERVER_URL =
 
 // --- Functions ---
 async function updateState() {
-  const data = await fetch(`${PIXEL_SERVER_URL}/get_state`).then((res) =>
-    res.json(),
-  );
+  try {
+    const response = await fetch(`${PIXEL_SERVER_URL}/get_state`);
+    const data = await response.json();
 
-  const oldState = state.map((row) => row.map((pixel) => ({ ...pixel })));
+    const oldState = state.map((row) => row.map((pixel) => ({ ...pixel })));
 
-  let changedPixels = 0;
+    let changedPixels = 0;
 
-  for (let y = 0; y < data.length; y++) {
-    state[y] = state[y] || [];
-    for (let x = 0; x < data[y].length; x++) {
-      const [r, g, b] = data[y][x];
-      if (
-        !oldState[y]?.[x] ||
-        oldState[y][x].r !== r ||
-        oldState[y][x].g !== g ||
-        oldState[y][x].b !== b
-      ) {
-        changedPixels++;
+    for (let y = 0; y < data.length; y++) {
+      state[y] = state[y] || [];
+      for (let x = 0; x < data[y].length; x++) {
+        const [r, g, b] = data[y][x];
+        if (
+          !oldState[y]?.[x] ||
+          oldState[y][x].r !== r ||
+          oldState[y][x].g !== g ||
+          oldState[y][x].b !== b
+        ) {
+          changedPixels++;
+        }
+        state[y][x] = { r, g, b };
       }
-      state[y][x] = { r, g, b };
+    }
+
+    console.log(`State updated - ${changedPixels} pixels changed`);
+  } catch (err) {
+    console.error("Failed to fetch state:", err);
+    if (err instanceof SyntaxError) {
+      console.error("Invalid JSON response from server");
     }
   }
-
-  console.log(`State updated - ${changedPixels} pixels changed`);
 }
 
 function findNextBlock(): { startX: number; startY: number } | null {
