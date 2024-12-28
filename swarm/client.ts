@@ -1,4 +1,5 @@
 import { sleep } from "bun";
+import { getHWID } from "hwid";
 
 const BEARER_TOKEN = process.env.BEARER_TOKEN;
 const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
@@ -11,12 +12,42 @@ class PixelClient {
   private maxRetries = 3;
   private backoffMultiplier = 1.5;
   private maxBackoffDelay = 30000; // 30 seconds
+  private token = "";
 
   constructor() {
     this.rateLimiter = new RateLimiter(1050); // 1.05 seconds between requests
   }
 
+  async register() {
+    try {
+      const hardwareId = await getHWID();
+      const response = await fetch(`${SERVER_URL}/register`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${BEARER_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          hardwareId,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`Registration failed: ${response.status}`);
+      }
+
+      const data = await response.json();
+      this.token = data.token;
+      console.log("[Info] Successfully registered with token:", this.token);
+    } catch (error) {
+      console.error("[Error] Failed to register:", error);
+      throw error;
+    }
+  }
+
   async start() {
+    await this.register();
+
     while (true) {
       try {
         // Get command from server
@@ -100,7 +131,7 @@ class PixelClient {
     try {
       const response = await fetch(`${SERVER_URL}/command`, {
         headers: {
-          Authorization: `Bearer ${BEARER_TOKEN}`,
+          Authorization: `Bearer ${this.token}`,
         },
       });
 
@@ -122,7 +153,7 @@ class PixelClient {
       const response = await fetch(`${SERVER_URL}/complete-job`, {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${BEARER_TOKEN}`,
+          Authorization: `Bearer ${this.token}`,
         },
       });
 

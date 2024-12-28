@@ -4,6 +4,7 @@ import { bearer } from "@elysiajs/bearer";
 import { cron } from "@elysiajs/cron";
 import { logger } from "@tqman/nice-logger";
 import { PNG } from "pngjs";
+import { randomUUIDv7 } from "bun";
 
 // --- Types ---
 type PixelJob = {
@@ -13,7 +14,9 @@ type PixelJob = {
 };
 
 type BotInfo = {
+  token: string;
   ip: string;
+  hardwareId: string;
   lastSeen: Date;
   currentJob?: {
     startX: number;
@@ -156,46 +159,45 @@ new Elysia()
       pattern: "*/10 * * * * *",
       run() {
         updateState();
-        for (const [ip, bot] of bots.entries()) {
+        for (const [token, bot] of bots.entries()) {
           if (Date.now() - bot.lastSeen.getTime() > 1000 * 60 * 2) {
-            bots.delete(ip);
-            console.log(`Removed inactive bot ${ip}`);
+            bots.delete(token);
+            console.log(`Removed inactive bot ${token}`);
+            console.log(bot);
           }
         }
       },
     }),
   )
-  .onBeforeHandle(({ bearer, set, ip }) => {
-    if (!bearer) {
-      set.status = 400;
-      set.headers["WWW-Authenticate"] =
-        `Bearer realm='sign', error="invalid_request"`;
+  .onBeforeHandle(({ bearer, set, ip, path }) => {
+    if (path === "/register") {
+      if (!bearer) {
+        set.status = 400;
+        set.headers["WWW-Authenticate"] =
+          `Bearer realm='sign', error="invalid_request"`;
+        return "Unauthorized";
+      }
 
-      return "Unauthorized";
-    }
-
-    if (bearer !== process.env.BEARER_TOKEN) {
-      set.status = 403;
-      set.headers["WWW-Authenticate"] =
-        `Bearer realm='sign', error="invalid_token"`;
-
-      return "Forbidden";
-    }
-
-    const bot = bots.get(ip);
-    if (!bot) {
-      console.log(`New bot registered: ${ip}`);
-      bots.set(ip, {
-        ip,
-        lastSeen: new Date(),
-      });
+      if (bearer !== process.env.BEARER_TOKEN) {
+        set.status = 403;
+        set.headers["WWW-Authenticate"] =
+          `Bearer realm='sign', error="invalid_token"`;
+        return "Forbidden";
+      }
     } else {
+      const bot = bots.get(bearer);
+      if (!bot || !bearer || bot.token !== bearer) {
+        set.status = 403;
+        set.headers["WWW-Authenticate"] =
+          `Bearer realm='sign', error="invalid_token"`;
+        return "Unauthorized - Invalid bot token";
+      }
       bot.lastSeen = new Date();
-      bots.set(ip, bot);
+      bots.set(bearer, bot);
     }
   })
-  .get("/command", ({ ip }) => {
-    const bot = bots.get(ip);
+  .get("/command", ({ bearer }) => {
+    const bot = bots.get(bearer);
     if (!bot) {
       return { error: "Bot not registered" };
     }
@@ -224,7 +226,7 @@ new Elysia()
       startY: nextBlock.startY,
       pixels,
     };
-    bots.set(ip, bot);
+    bots.set(bearer, bot);
 
     return {
       startX: nextBlock.startX,
@@ -232,17 +234,38 @@ new Elysia()
       pixels,
     };
   })
-  .post("/complete-job", ({ ip }) => {
-    const bot = bots.get(ip);
+  .post("/complete-job", ({ bearer }) => {
+    const bot = bots.get(bearer);
     if (!bot) {
       return { error: "Bot not registered" };
     }
 
     // Clear the bot's current job
     bot.currentJob = undefined;
-    bots.set(ip, bot);
+    bots.set(bearer, bot);
 
     return { message: "Job completed successfully" };
+  })
+  .post("/register", ({ ip, body, error }) => {
+    // check if hardwareId is provided
+    if (!body.hardwareId) {
+      return error({ error: "Hardware ID is required" });
+    }
+
+    // create a new bot and return the token
+    const token = randomUUIDv7();
+    const bot: BotInfo = {
+      token,
+      ip,
+      hardwareId: body.hardwareId,
+      lastSeen: new Date(),
+    };
+    bots.set(token, bot);
+
+    console.log(`Registered bot ${token}`);
+    console.log(bot);
+
+    return { token };
   })
   .listen(process.env.PORT || 3000);
 
