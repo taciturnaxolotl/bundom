@@ -141,81 +141,98 @@ class PixelRateLimiter {
 
 // Usage
 async function main() {
-  // First fetch current canvas state
-  const currentState = await fetch("https://place.danieldb.uk/get_state").then(
-    (res) => res.json(),
-  );
-
   const file = await Bun.file("corgi.png").arrayBuffer();
   const png = PNG.sync.read(Buffer.from(file));
-
   console.log({ width: png.width, height: png.height });
 
-  // Count how many pixels actually need updating
-  let pixelsToUpdate = 0;
-  const updateQueue: {
-    x: number;
-    y: number;
-    r: number;
-    g: number;
-    b: number;
-  }[] = [];
+  const rateLimiter = new PixelRateLimiter();
+  let totalPixelsUpdated = 0;
 
-  for (let y = 0; y < png.height; y++) {
-    for (let x = 0; x < png.width; x++) {
-      const idx = (png.width * y + x) << 2;
-      const targetR = png.data[idx];
-      const targetG = png.data[idx + 1];
-      const targetB = png.data[idx + 2];
+  while (true) {
+    // Fetch current state of entire canvas
+    const currentState = await fetch(
+      "https://place.danieldb.uk/get_state",
+    ).then((res) => res.json());
 
-      // Get current pixel color from state
-      const currentPixel = currentState[y][x];
-      const currentR = currentPixel[0];
-      const currentG = currentPixel[1];
-      const currentB = currentPixel[2];
+    let incorrectPixelsFound = false;
 
-      // Only update if colors are different
-      if (
-        currentR !== targetR ||
-        currentG !== targetG ||
-        currentB !== targetB
-      ) {
-        pixelsToUpdate++;
-        updateQueue.push({ x, y, r: targetR, g: targetG, b: targetB });
+    // Check line by line
+    for (let y = 0; y < png.height; y++) {
+      const lineUpdateQueue: {
+        x: number;
+        y: number;
+        r: number;
+        g: number;
+        b: number;
+      }[] = [];
+
+      // Check which pixels need updating in this line
+      for (let x = 0; x < png.width; x++) {
+        const idx = (png.width * y + x) << 2;
+        const targetR = png.data[idx];
+        const targetG = png.data[idx + 1];
+        const targetB = png.data[idx + 2];
+
+        const currentPixel = currentState[y][x];
+        const currentR = currentPixel[0];
+        const currentG = currentPixel[1];
+        const currentB = currentPixel[2];
+
+        if (
+          currentR !== targetR ||
+          currentG !== targetG ||
+          currentB !== targetB
+        ) {
+          lineUpdateQueue.push({ x, y, r: targetR, g: targetG, b: targetB });
+          incorrectPixelsFound = true;
+        }
+      }
+
+      if (lineUpdateQueue.length > 0) {
+        console.log(
+          `\nProcessing line ${y}: ${lineUpdateQueue.length} pixels need updating`,
+        );
+
+        const progress = {
+          completed: 0,
+          total: lineUpdateQueue.length,
+          startTime: Date.now(),
+        };
+
+        const promises: Promise<void>[] = [];
+
+        // Schedule all pixels in this line
+        for (const pixel of lineUpdateQueue) {
+          promises.push(
+            rateLimiter.schedule(
+              pixel.x,
+              pixel.y,
+              pixel.r,
+              pixel.g,
+              pixel.b,
+              progress,
+            ),
+          );
+        }
+
+        // Wait for current line to complete
+        await Promise.all(promises);
+        totalPixelsUpdated += lineUpdateQueue.length;
+
+        // Break after completing one line to do a full recheck
+        break;
       }
     }
+
+    if (!incorrectPixelsFound) {
+      console.log("\nAll pixels match the target image!");
+      break;
+    }
+
+    console.log("\nRechecking entire canvas state...");
   }
 
-  console.log(
-    `Need to update ${pixelsToUpdate} pixels out of ${png.width * png.height}`,
-  );
-
-  const progress = {
-    completed: 0,
-    total: pixelsToUpdate,
-    startTime: Date.now(),
-  };
-
-  const rateLimiter = new PixelRateLimiter();
-  const promises: Promise<void>[] = [];
-
-  // Only schedule pixels that need updating
-  for (const pixel of updateQueue) {
-    promises.push(
-      rateLimiter.schedule(
-        pixel.x,
-        pixel.y,
-        pixel.r,
-        pixel.g,
-        pixel.b,
-        progress,
-      ),
-    );
-  }
-
-  // Wait for all pixels to be processed
-  await Promise.all(promises);
-  console.log("\nComplete!");
+  console.log(`\nComplete! Updated ${totalPixelsUpdated} pixels total.`);
 }
 
 main().catch(console.error);
