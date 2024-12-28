@@ -12,9 +12,9 @@ type Pixel = {
 
 // State
 const canvas: Pixel[][] = [];
-const CANVAS_WIDTH = 1000;
-const CANVAS_HEIGHT = 1000;
-const RATE_LIMIT_MS = 1000;
+const CANVAS_WIDTH = 64;
+const CANVAS_HEIGHT = 64;
+const RATE_LIMIT_MS = 100;
 
 // Initialize empty canvas
 for (let y = 0; y < CANVAS_HEIGHT; y++) {
@@ -84,7 +84,7 @@ new Elysia()
         set.status = 429; // Too Many Requests
         return {
           error: "Rate limit exceeded",
-          try_in: Math.ceil((RATE_LIMIT_MS - timeElapsed) / 1000),
+          try_in: Number(((RATE_LIMIT_MS - timeElapsed) / 1000).toFixed(1)),
         };
       }
     }
