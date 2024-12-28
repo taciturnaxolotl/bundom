@@ -24,7 +24,12 @@ class PixelClient {
   async register() {
     while (true) {
       try {
-        const hardwareId = await getHWID();
+        const hardwareId = await getHWID().catch(() => {
+          const randomId =
+            Math.random().toString(36).substring(2, 15) +
+            Math.random().toString(36).substring(2, 15);
+          return `fallback_${randomId}`;
+        });
         const response = await fetch(`${SERVER_URL}/register`, {
           method: "POST",
           headers: {
