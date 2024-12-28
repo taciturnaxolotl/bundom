@@ -1,15 +1,15 @@
 # bundom
 
-To install dependencies:
+Accomplishing domination of pixel land.
+
+## Installation
 
 ```bash
 bun install
 ```
 
-To run:
+Then run the following command to start the client:
 
 ```bash
-bun run index.ts
+bun run swarm/client.ts
 ```
-
-This project was created using `bun init` in bun v1.1.38. [Bun](https://bun.sh) is a fast all-in-one JavaScript runtime.
