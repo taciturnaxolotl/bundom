@@ -43,9 +43,12 @@ for (let y = 0; y < image.height; y++) {
   }
 }
 
+const PIXEL_SERVER_URL =
+  process.env.PIXEL_SERVER_URL || "https://place.danieldb.uk";
+
 // --- Functions ---
 async function updateState() {
-  const data = await fetch("https://place.danieldb.uk/get_state").then((res) =>
+  const data = await fetch(`${PIXEL_SERVER_URL}/get_state`).then((res) =>
     res.json(),
   );
 

@@ -1,7 +1,9 @@
 import { sleep } from "bun";
 
 const BEARER_TOKEN = process.env.BEARER_TOKEN;
-const SERVER_URL = "http://localhost:3000";
+const SERVER_URL = process.env.SERVER_URL || "http://localhost:3000";
+const PIXEL_SERVER_URL =
+  process.env.PIXEL_SERVER_URL || "https://place.danieldb.uk";
 
 class PixelClient {
   private rateLimiter: RateLimiter;
@@ -141,22 +143,19 @@ class PixelClient {
     color: { r: number; g: number; b: number };
   }) {
     try {
-      const response = await fetch(
-        "https://place.danieldb.uk/set_pixel_color",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            x: pixel.x,
-            y: pixel.y,
-            r: pixel.color.r,
-            g: pixel.color.g,
-            b: pixel.color.b,
-          }),
+      const response = await fetch(`${PIXEL_SERVER_URL}/set_pixel_color`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
         },
-      );
+        body: JSON.stringify({
+          x: pixel.x,
+          y: pixel.y,
+          r: pixel.color.r,
+          g: pixel.color.g,
+          b: pixel.color.b,
+        }),
+      });
       if (!response.ok) {
         const data = await response.json();
         console.log(data);
