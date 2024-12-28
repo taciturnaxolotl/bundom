@@ -288,13 +288,14 @@ new Elysia()
           currentJob: NonNullable<BotInfo["currentJob"]>;
         } => bot.currentJob !== undefined,
       )
-      .map((bot) => ({
+      .map((bot, index) => ({
         startX: bot.currentJob.startX,
         startY: bot.currentJob.startY,
         regionSize: 10,
         pixels: bot.currentJob.pixels,
         hardwareId: bot.hardwareId,
         lastSeen: bot.lastSeen,
+        id: index + 1,
       }));
 
     return {

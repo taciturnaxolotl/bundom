@@ -20,6 +20,7 @@
                 image-rendering: pixelated;
                 width: 512px;
                 height: 512px;
+                position: relative;
             }
             #colorPicker {
                 margin: 10px;
@@ -47,6 +48,15 @@
                 width: 0%;
                 height: 100%;
                 background: #4caf50;
+            }
+            .bot-overlay {
+                position: absolute;
+                pointer-events: none;
+                z-index: 1000;
+                transition: opacity 0.3s;
+            }
+            .bot-overlay:hover {
+                opacity: 0.8;
             }
         </style>
     </head>
@@ -90,6 +100,49 @@
                 }
             }
 
+            async function updateBotOverlays() {
+                try {
+                    const response = await fetch("http://localhost:3000/jobs", {
+                        method: "GET",
+                        headers: {
+                            Authorization: "Bearer test",
+                            "Content-Type": "application/json",
+                        },
+                    });
+                    const jobs = await response.json();
+
+                    document
+                        .querySelectorAll(".bot-overlay")
+                        .forEach((o) => o.remove());
+
+                    const colors = jobs.workingRegions.map(
+                        (region) =>
+                            `hsla(${parseInt(region.id, 16) % 360}, 70%, 50%, 0.2)`,
+                    );
+
+                    const canvasRect = canvas.getBoundingClientRect();
+                    const scale = canvasRect.width / 64;
+
+                    jobs.workingRegions.forEach((region, index) => {
+                        const overlay = document.createElement("div");
+                        overlay.classList.add("bot-overlay");
+
+                        overlay.style.left = `${region.startX * scale + canvasRect.left}px`;
+                        overlay.style.top = `${region.startY * scale + canvasRect.top}px`;
+                        overlay.style.width = `${region.regionSize * scale}px`;
+                        overlay.style.height = `${region.regionSize * scale}px`;
+                        overlay.style.backgroundColor = colors[index];
+                        overlay.style.border = `2px solid ${colors[index].replace("0.2", "0.5")}`;
+
+                        overlay.title = `Bot ${region.hardwareId}\nLast seen: ${new Date(region.lastSeen).toLocaleString()}`;
+
+                        document.body.appendChild(overlay);
+                    });
+                } catch (error) {
+                    console.error("Failed to update bot overlays:", error);
+                }
+            }
+
             async function updateCanvas() {
                 try {
                     const response = await fetch("/get_state");
@@ -101,6 +154,7 @@
                             ctx.fillRect(x, y, 1, 1);
                         }
                     }
+                    await updateBotOverlays();
                 } catch (error) {
                     console.error("Failed to update canvas:", error);
                 }
