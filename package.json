@@ -11,6 +11,7 @@
   "dependencies": {
     "@elysiajs/bearer": "^1.2.0",
     "@elysiajs/cron": "^1.2.0",
+    "@elysiajs/static": "^1.2.0",
     "@tqman/nice-logger": "^1.1.1",
     "@types/pngjs": "^6.0.5",
     "bottleneck": "^2.19.5",

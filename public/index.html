@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Canvas Place</title>
+        <style>
+            body {
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                background-color: #f0f0f0;
+                font-family: Arial, sans-serif;
+            }
+            #canvas {
+                margin: 20px;
+                border: 1px solid #ccc;
+                cursor: crosshair;
+            }
+            #colorPicker {
+                margin: 10px;
+                padding: 10px;
+                background-color: white;
+                border-radius: 5px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            }
+            #status {
+                margin: 10px;
+                padding: 10px;
+                border-radius: 5px;
+                background-color: white;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            }
+        </style>
+    </head>
+    <body>
+        <div id="colorPicker">
+            Color: <input type="color" id="color" value="#000000" />
+        </div>
+        <canvas id="canvas" width="1000" height="1000"></canvas>
+        <div id="status">Ready</div>
+        <script src="main.js"></script>
+    </body>
+</html>
