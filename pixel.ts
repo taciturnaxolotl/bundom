@@ -1,5 +1,8 @@
 import { PNG } from "pngjs";
 
+const DIRECTION =
+  process.env.DIRECTION?.toLowerCase() === "bottom" ? "bottom" : "top";
+
 class PixelRateLimiter {
   private queue: Array<() => Promise<void>> = [];
   private isProcessing = false;
@@ -144,6 +147,9 @@ async function main() {
   const file = await Bun.file("corgi.png").arrayBuffer();
   const png = PNG.sync.read(Buffer.from(file));
   console.log({ width: png.width, height: png.height });
+  console.log(
+    `Drawing direction: ${DIRECTION === "bottom" ? "bottom-to-top" : "top-to-bottom"}`,
+  );
 
   const rateLimiter = new PixelRateLimiter();
   let totalPixelsUpdated = 0;
@@ -156,8 +162,14 @@ async function main() {
 
     let incorrectPixelsFound = false;
 
+    // Create array of y-coordinates based on direction
+    const yCoordinates = Array.from({ length: png.height }, (_, i) => i);
+    if (DIRECTION === "bottom") {
+      yCoordinates.reverse(); // Bottom to top
+    }
+
     // Check line by line
-    for (let y = 0; y < png.height; y++) {
+    for (const y of yCoordinates) {
       const lineUpdateQueue: {
         x: number;
         y: number;
