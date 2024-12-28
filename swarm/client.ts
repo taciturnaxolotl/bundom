@@ -16,7 +16,8 @@ class PixelClient {
   private token = "";
 
   constructor() {
-    this.rateLimiter = new RateLimiter(1050); // 1.05 seconds between requests
+    // Don't set initial rate limit - will be set dynamically
+    this.rateLimiter = new RateLimiter(0);
   }
 
   async register() {
@@ -193,10 +194,9 @@ class PixelClient {
         if (DEBUG) console.log(data);
         if (response.status === 429 && data.try_in !== undefined) {
           this.rateLimiter.updateMinTime(data.try_in * 1000);
-          console.error(`[Rate Limit] Try in ${data.try_in}s`);
-        } else {
-          console.error(`[HTTP Error] Status: ${response.status}`);
+          throw new Error(`[Rate Limit] Try in ${data.try_in}s`);
         }
+        console.error(`[HTTP Error] Status: ${response.status}`);
       } else {
         console.log(`[Success] Set pixel at (${pixel.x}, ${pixel.y})`);
       }
@@ -230,7 +230,7 @@ class RateLimiter {
   }
 
   updateMinTime(newMinTime: number) {
-    this.minTime = Math.max(this.minTime, newMinTime);
+    this.minTime = newMinTime;
     this.dynamicWaitTime = this.minTime * 1.1; // Add 10% buffer
   }
 
