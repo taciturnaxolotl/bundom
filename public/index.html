@@ -17,6 +17,9 @@
                 margin: 20px;
                 border: 1px solid #ccc;
                 cursor: crosshair;
+                image-rendering: pixelated;
+                width: 512px;
+                height: 512px;
             }
             #colorPicker {
                 margin: 10px;
@@ -32,14 +35,145 @@
                 background-color: white;
                 box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             }
+            #cooldown {
+                width: 200px;
+                height: 10px;
+                background: #ddd;
+                border-radius: 5px;
+                overflow: hidden;
+                margin: 10px;
+            }
+            #cooldownBar {
+                width: 0%;
+                height: 100%;
+                background: #4caf50;
+            }
         </style>
     </head>
     <body>
         <div id="colorPicker">
             Color: <input type="color" id="color" value="#000000" />
         </div>
-        <canvas id="canvas" width="1000" height="1000"></canvas>
+        <canvas id="canvas" width="64" height="64"></canvas>
         <div id="status">Ready</div>
-        <script src="main.js"></script>
+        <div id="cooldown"><div id="cooldownBar"></div></div>
+        <script>
+            const canvas = document.getElementById("canvas");
+            const ctx = canvas.getContext("2d", { willReadFrequently: true });
+            const colorPicker = document.getElementById("color");
+            const status = document.getElementById("status");
+            const cooldownBar = document.getElementById("cooldownBar");
+
+            let canPlace = true;
+            let cooldownTimeout;
+            let cooldownInterval;
+            let animationStart;
+
+            function hexToRgb(hex) {
+                const r = parseInt(hex.substr(1, 2), 16);
+                const g = parseInt(hex.substr(3, 2), 16);
+                const b = parseInt(hex.substr(5, 2), 16);
+                return { r, g, b };
+            }
+
+            function animate(timestamp) {
+                if (!animationStart) animationStart = timestamp;
+                const elapsed = timestamp - animationStart;
+                const duration = cooldownBar.dataset.duration;
+
+                if (elapsed < duration) {
+                    const progress = elapsed / duration;
+                    cooldownBar.style.width = `${progress * 100}%`;
+                    requestAnimationFrame(animate);
+                } else {
+                    cooldownBar.style.width = "100%";
+                }
+            }
+
+            async function updateCanvas() {
+                try {
+                    const response = await fetch("/get_state");
+                    const state = await response.json();
+
+                    for (let y = 0; y < state.length; y++) {
+                        for (let x = 0; x < state[y].length; x++) {
+                            ctx.fillStyle = `rgb(${state[y][x][0]}, ${state[y][x][1]}, ${state[y][x][2]})`;
+                            ctx.fillRect(x, y, 1, 1);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Failed to update canvas:", error);
+                }
+            }
+
+            async function placePixel(x, y, color) {
+                if (!canPlace) {
+                    status.textContent = "Please wait for the cooldown";
+                    return;
+                }
+
+                try {
+                    const scaledX = Math.floor(x * (64 / canvas.offsetWidth));
+                    const scaledY = Math.floor(y * (64 / canvas.offsetHeight));
+
+                    const response = await fetch("/set_pixel_color", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                        },
+                        body: JSON.stringify({
+                            x: scaledX,
+                            y: scaledY,
+                            ...color,
+                        }),
+                    });
+
+                    const data = await response.json();
+
+                    if (response.status === 429) {
+                        status.textContent = `Rate limited. Try again in ${data.try_in}s`;
+                        canPlace = false;
+                        clearTimeout(cooldownTimeout);
+
+                        cooldownBar.style.width = "0%";
+                        cooldownBar.dataset.duration = data.try_in * 1000;
+                        animationStart = null;
+                        requestAnimationFrame(animate);
+
+                        cooldownTimeout = setTimeout(() => {
+                            canPlace = true;
+                            status.textContent = "Ready";
+                            cooldownBar.style.width = "0%";
+                        }, data.try_in * 1000);
+
+                        await updateCanvas();
+                        return;
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(data.error || "Failed to place pixel");
+                    }
+
+                    ctx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
+                    ctx.fillRect(scaledX, scaledY, 1, 1);
+                } catch (error) {
+                    status.textContent = `Error: ${error.message}`;
+                    console.error("Failed to place pixel:", error);
+                    await updateCanvas();
+                }
+            }
+
+            canvas.addEventListener("click", (event) => {
+                const rect = canvas.getBoundingClientRect();
+                const x = event.clientX - rect.left;
+                const y = event.clientY - rect.top;
+                const color = hexToRgb(colorPicker.value);
+                placePixel(x, y, color);
+            });
+
+            setInterval(updateCanvas, 2000);
+
+            updateCanvas();
+        </script>
     </body>
 </html>
