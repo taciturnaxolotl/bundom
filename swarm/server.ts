@@ -172,7 +172,7 @@ new Elysia()
       run() {
         updateState();
         for (const [token, bot] of bots.entries()) {
-          if (Date.now() - bot.lastSeen.getTime() > 1000 * 60 * 2) {
+          if (Date.now() - bot.lastSeen.getTime() > 1000 * 60 * 4) {
             bots.delete(token);
             console.log(`Removed inactive bot ${token}`);
             console.log({ ...bot, currentJob: undefined });
