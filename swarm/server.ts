@@ -87,8 +87,8 @@ async function updateState() {
 
 function calculateBlockDamage(startX: number, startY: number): number {
   let damagedPixels = 0;
-  for (let y = startY; y < Math.min(startY + 10, state.length); y++) {
-    for (let x = startX; x < Math.min(startX + 10, state[0].length); x++) {
+  for (let y = startY; y < Math.min(startY + 8, state.length); y++) {
+    for (let x = startX; x < Math.min(startX + 8, state[0].length); x++) {
       if (
         !state[y]?.[x] ||
         state[y][x].r !== desiredState[y][x].r ||
@@ -106,8 +106,8 @@ function findNextBlock(): { startX: number; startY: number } | null {
   let maxDamage = 0;
   let bestBlock = null;
 
-  for (let y = 0; y < desiredState.length; y += 10) {
-    for (let x = 0; x < desiredState[0].length; x += 10) {
+  for (let y = 0; y < desiredState.length; y += 8) {
+    for (let x = 0; x < desiredState[0].length; x += 8) {
       // Check if any bot is already working on this block
       const isBlockTaken = Array.from(bots.values()).some(
         (bot) =>
@@ -129,29 +129,13 @@ function findNextBlock(): { startX: number; startY: number } | null {
   return bestBlock;
 }
 
-function checkBlockNeedsWork(startX: number, startY: number): boolean {
-  for (let y = startY; y < Math.min(startY + 10, state.length); y++) {
-    for (let x = startX; x < Math.min(startX + 10, state[0].length); x++) {
-      if (
-        !state[y]?.[x] ||
-        state[y][x].r !== desiredState[y][x].r ||
-        state[y][x].g !== desiredState[y][x].g ||
-        state[y][x].b !== desiredState[y][x].b
-      ) {
-        return true;
-      }
-    }
-  }
-  return false;
-}
-
 function generateJobForBlock(startX: number, startY: number): PixelJob[] {
   const pixels: PixelJob[] = [];
 
-  for (let y = startY; y < Math.min(startY + 10, desiredState.length); y++) {
+  for (let y = startY; y < Math.min(startY + 8, desiredState.length); y++) {
     for (
       let x = startX;
-      x < Math.min(startX + 10, desiredState[0].length);
+      x < Math.min(startX + 8, desiredState[0].length);
       x++
     ) {
       if (
@@ -312,7 +296,7 @@ new Elysia()
       .map((bot, index) => ({
         startX: bot.currentJob.startX,
         startY: bot.currentJob.startY,
-        regionSize: 10,
+        regionSize: 8,
         pixels: bot.currentJob.pixels,
         hardwareId: bot.hardwareId,
         lastSeen: bot.lastSeen,
