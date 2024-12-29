@@ -102,13 +102,16 @@
 
             async function updateBotOverlays() {
                 try {
-                    const response = await fetch("http://localhost:3000/jobs", {
-                        method: "GET",
-                        headers: {
-                            Authorization: "Bearer test",
-                            "Content-Type": "application/json",
+                    const response = await fetch(
+                        "http://hackclub.app:38425/jobs",
+                        {
+                            method: "GET",
+                            headers: {
+                                Authorization: "Bearer test",
+                                "Content-Type": "application/json",
+                            },
                         },
-                    });
+                    );
                     const jobs = await response.json();
 
                     document
@@ -117,7 +120,7 @@
 
                     const colors = jobs.workingRegions.map(
                         (region) =>
-                            `hsla(${parseInt(region.id, 16) % 360}, 70%, 50%, 0.2)`,
+                            `hsla(${parseInt(region.id, jobs.botCount) % 360}, 70%, 50%, 0.2)`,
                     );
 
                     const canvasRect = canvas.getBoundingClientRect();
@@ -145,7 +148,9 @@
 
             async function updateCanvas() {
                 try {
-                    const response = await fetch("/get_state");
+                    const response = await fetch(
+                        "https://place.danieldb.uk/get_state",
+                    );
                     const state = await response.json();
 
                     for (let y = 0; y < state.length; y++) {
