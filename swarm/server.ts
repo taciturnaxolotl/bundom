@@ -187,7 +187,7 @@ new Elysia()
     }),
   )
   .onBeforeHandle(({ bearer, set, ip, path }) => {
-    if (path === "/register" || path === "/jobs") {
+    if (path === "/register" || path === "/jobs" || path === "/desired") {
       if (!bearer) {
         set.status = 400;
         set.headers["WWW-Authenticate"] =
@@ -308,6 +308,7 @@ new Elysia()
       botCount: bots.size,
     };
   })
+  .get("/desired", () => desiredState)
   .listen(process.env.PORT || 3000);
 
 // --- Start ---
