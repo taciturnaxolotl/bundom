@@ -85,7 +85,27 @@ async function updateState() {
   }
 }
 
+function calculateBlockDamage(startX: number, startY: number): number {
+  let damagedPixels = 0;
+  for (let y = startY; y < Math.min(startY + 10, state.length); y++) {
+    for (let x = startX; x < Math.min(startX + 10, state[0].length); x++) {
+      if (
+        !state[y]?.[x] ||
+        state[y][x].r !== desiredState[y][x].r ||
+        state[y][x].g !== desiredState[y][x].g ||
+        state[y][x].b !== desiredState[y][x].b
+      ) {
+        damagedPixels++;
+      }
+    }
+  }
+  return damagedPixels;
+}
+
 function findNextBlock(): { startX: number; startY: number } | null {
+  let maxDamage = 0;
+  let bestBlock = null;
+
   for (let y = 0; y < desiredState.length; y += 10) {
     for (let x = 0; x < desiredState[0].length; x += 10) {
       // Check if any bot is already working on this block
@@ -97,15 +117,16 @@ function findNextBlock(): { startX: number; startY: number } | null {
       );
 
       if (!isBlockTaken) {
-        // Check if block needs work
-        const needsWork = checkBlockNeedsWork(x, y);
-        if (needsWork) {
-          return { startX: x, startY: y };
+        const damage = calculateBlockDamage(x, y);
+        if (damage > 0 && damage > maxDamage) {
+          maxDamage = damage;
+          bestBlock = { startX: x, startY: y };
         }
       }
     }
   }
-  return null;
+
+  return bestBlock;
 }
 
 function checkBlockNeedsWork(startX: number, startY: number): boolean {
