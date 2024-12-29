@@ -118,10 +118,12 @@
                         .querySelectorAll(".bot-overlay")
                         .forEach((o) => o.remove());
 
-                    const colors = jobs.workingRegions.map(
-                        (region) =>
-                            `hsla(${parseInt(region.id, jobs.botCount) % 360}, 70%, 50%, 0.2)`,
-                    );
+                    const colors = jobs.workingRegions.map((region) => {
+                        const hue =
+                            (parseInt(region.id) % jobs.botCount) *
+                            (360 / jobs.botCount);
+                        return `hsla(${hue}, 70%, 50%, 0.4)`;
+                    });
 
                     const canvasRect = canvas.getBoundingClientRect();
                     const scale = canvasRect.width / 64;
@@ -160,8 +162,46 @@
                         }
                     }
                     await updateBotOverlays();
+                    await updateDesiredState();
                 } catch (error) {
                     console.error("Failed to update canvas:", error);
+                }
+            }
+
+            async function updateDesiredState() {
+                try {
+                    const response = await fetch(
+                        "http://hackclub.app:38425/desired",
+                        {
+                            method: "GET",
+                            headers: {
+                                Authorization: "Bearer test",
+                                "Content-Type": "application/json",
+                            },
+                        },
+                    );
+                    const desiredState = await response.json();
+                    for (let y = 0; y < desiredState.length; y++) {
+                        for (let x = 0; x < desiredState[y].length; x++) {
+                            const desiredPixel = desiredState[y][x];
+                            const currentPixel = ctx.getImageData(
+                                x,
+                                y,
+                                1,
+                                1,
+                            ).data;
+                            if (
+                                desiredPixel.r !== currentPixel[0] ||
+                                desiredPixel.g !== currentPixel[1] ||
+                                desiredPixel.b !== currentPixel[2]
+                            ) {
+                                ctx.fillStyle = "rgba(255, 255, 255, 1)";
+                                ctx.fillRect(x, y, 1, 1);
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error("Failed to update desired state:", error);
                 }
             }
 
