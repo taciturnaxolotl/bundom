@@ -29,26 +29,6 @@
                 border-radius: 5px;
                 box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
             }
-            #status {
-                margin: 10px;
-                padding: 10px;
-                border-radius: 5px;
-                background-color: white;
-                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-            }
-            #cooldown {
-                width: 200px;
-                height: 10px;
-                background: #ddd;
-                border-radius: 5px;
-                overflow: hidden;
-                margin: 10px;
-            }
-            #cooldownBar {
-                width: 0%;
-                height: 100%;
-                background: #4caf50;
-            }
             .bot-overlay {
                 position: absolute;
                 pointer-events: none;
@@ -116,6 +96,13 @@
                 height: 100%;
                 pointer-events: none;
             }
+            #opacitySlider {
+                margin: 10px;
+                padding: 10px;
+                background-color: white;
+                border-radius: 5px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            }
         </style>
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </head>
@@ -124,9 +111,18 @@
             Color: <input type="color" id="color" value="#000000" />
         </div>
         <canvas id="canvas" width="64" height="64"></canvas>
-        <div id="status">Ready</div>
-        <div id="cooldown"><div id="cooldownBar"></div></div>
         <div id="controls">
+            <div id="opacitySlider">
+                Overlay Opacity:
+                <input
+                    type="range"
+                    id="overlayOpacity"
+                    min="0"
+                    max="1"
+                    step="0.01"
+                    value="0.25"
+                />
+            </div>
             <label>
                 <input type="checkbox" id="botJobStatus" checked />
                 Show Bot Job Status
@@ -147,8 +143,6 @@
             const canvas = document.getElementById("canvas");
             const ctx = canvas.getContext("2d", { willReadFrequently: true });
             const colorPicker = document.getElementById("color");
-            const status = document.getElementById("status");
-            const cooldownBar = document.getElementById("cooldownBar");
             const botJobStatusCheckbox =
                 document.getElementById("botJobStatus");
             const wantedResultOverlayCheckbox = document.getElementById(
@@ -160,13 +154,19 @@
             const trendGraph = document.getElementById("trendGraph");
             const trendGraphLabels =
                 document.getElementById("trendGraphLabels");
+            const overlayOpacitySlider =
+                document.getElementById("overlayOpacity");
 
             let canPlace = true;
-            let cooldownTimeout;
-            let cooldownInterval;
-            let animationStart;
             let progressHistory = [];
             let trendChart;
+            let overlayOpacity = overlayOpacitySlider.value;
+            let cachedBotOverlays = [];
+            let cachedDesiredState = [];
+
+            overlayOpacitySlider.addEventListener("input", (event) => {
+                overlayOpacity = event.target.value;
+            });
 
             function hexToRgb(hex) {
                 const r = parseInt(hex.substr(1, 2), 16);
@@ -175,23 +175,7 @@
                 return { r, g, b };
             }
 
-            function animate(timestamp) {
-                if (!animationStart) animationStart = timestamp;
-                const elapsed = timestamp - animationStart;
-                const duration = cooldownBar.dataset.duration;
-
-                if (elapsed < duration) {
-                    const progress = elapsed / duration;
-                    cooldownBar.style.width = `${progress * 100}%`;
-                    requestAnimationFrame(animate);
-                } else {
-                    cooldownBar.style.width = "100%";
-                }
-            }
-
-            async function updateBotOverlays() {
-                if (!botJobStatusCheckbox.checked) return;
-
+            async function fetchBotOverlays() {
                 try {
                     const response = await fetch(
                         "http://hackclub.app:38425/jobs",
@@ -204,66 +188,73 @@
                         },
                     );
                     const jobs = await response.json();
-
-                    document
-                        .querySelectorAll(".bot-overlay")
-                        .forEach((o) => o.remove());
-
-                    const colors = jobs.workingRegions.map((region) => {
-                        const hue =
-                            (parseInt(region.id) % jobs.botCount) *
-                            (360 / jobs.botCount);
-                        return `hsla(${hue}, 70%, 50%, 0.4)`;
-                    });
-
-                    const canvasRect = canvas.getBoundingClientRect();
-                    const scale = canvasRect.width / 64;
-
-                    jobs.workingRegions.forEach((region, index) => {
-                        const overlay = document.createElement("div");
-                        overlay.classList.add("bot-overlay");
-
-                        overlay.style.left = `${region.startX * scale + canvasRect.left}px`;
-                        overlay.style.top = `${region.startY * scale + canvasRect.top}px`;
-                        overlay.style.width = `${region.regionSize * scale}px`;
-                        overlay.style.height = `${region.regionSize * scale}px`;
-                        overlay.style.backgroundColor = colors[index];
-                        overlay.style.border = `2px solid ${colors[index].replace("0.2", "0.5")}`;
-
-                        overlay.title = `Bot ${region.hardwareId}\nLast seen: ${new Date(region.lastSeen).toLocaleString()}`;
-
-                        document.body.appendChild(overlay);
-                    });
-
-                    activeBots.textContent = `Active Bots: ${jobs.botCount}`;
+                    cachedBotOverlays = jobs;
+                    updateBotOverlays(jobs);
                 } catch (error) {
-                    console.error("Failed to update bot overlays:", error);
+                    console.error("Failed to fetch bot overlays:", error);
                 }
             }
 
-            async function updateCanvas() {
+            function updateBotOverlays(jobs) {
+                if (!botJobStatusCheckbox.checked) return;
+
+                document
+                    .querySelectorAll(".bot-overlay")
+                    .forEach((o) => o.remove());
+
+                const colors = jobs.workingRegions.map((region) => {
+                    const hue =
+                        (parseInt(region.id) % jobs.botCount) *
+                        (360 / jobs.botCount);
+                    return `hsla(${hue}, 70%, 50%, 0.4)`;
+                });
+
+                const canvasRect = canvas.getBoundingClientRect();
+                const scale = canvasRect.width / 64;
+
+                jobs.workingRegions.forEach((region, index) => {
+                    const overlay = document.createElement("div");
+                    overlay.classList.add("bot-overlay");
+
+                    overlay.style.left = `${region.startX * scale + canvasRect.left}px`;
+                    overlay.style.top = `${region.startY * scale + canvasRect.top}px`;
+                    overlay.style.width = `${region.regionSize * scale}px`;
+                    overlay.style.height = `${region.regionSize * scale}px`;
+                    overlay.style.backgroundColor = colors[index];
+                    overlay.style.border = `2px solid ${colors[index].replace("0.2", "0.5")}`;
+
+                    overlay.title = `Bot ${region.hardwareId}\nLast seen: ${new Date(region.lastSeen).toLocaleString()}`;
+
+                    document.body.appendChild(overlay);
+                });
+
+                activeBots.textContent = `Active Bots: ${jobs.botCount}`;
+            }
+
+            async function fetchCanvasState() {
                 try {
                     const response = await fetch(
                         "https://place.danieldb.uk/get_state",
                     );
                     const state = await response.json();
-
-                    for (let y = 0; y < state.length; y++) {
-                        for (let x = 0; x < state[y].length; x++) {
-                            ctx.fillStyle = `rgb(${state[y][x][0]}, ${state[y][x][1]}, ${state[y][x][2]})`;
-                            ctx.fillRect(x, y, 1, 1);
-                        }
-                    }
-                    await updateBotOverlays();
-                    await updateDesiredState();
+                    updateCanvas(state);
                 } catch (error) {
-                    console.error("Failed to update canvas:", error);
+                    console.error("Failed to fetch canvas state:", error);
                 }
             }
 
-            async function updateDesiredState() {
-                if (!wantedResultOverlayCheckbox.checked) return;
+            function updateCanvas(state) {
+                for (let y = 0; y < state.length; y++) {
+                    for (let x = 0; x < state[y].length; x++) {
+                        ctx.fillStyle = `rgb(${state[y][x][0]}, ${state[y][x][1]}, ${state[y][x][2]})`;
+                        ctx.fillRect(x, y, 1, 1);
+                    }
+                }
+                updateBotOverlays(cachedBotOverlays);
+                updateDesiredState(cachedDesiredState);
+            }
 
+            async function fetchDesiredState() {
                 try {
                     const response = await fetch(
                         "http://hackclub.app:38425/desired",
@@ -276,42 +267,42 @@
                         },
                     );
                     const desiredState = await response.json();
-                    let totalPixels = 0;
-                    let correctPixels = 0;
-
-                    for (let y = 0; y < desiredState.length; y++) {
-                        for (let x = 0; x < desiredState[y].length; x++) {
-                            const desiredPixel = desiredState[y][x];
-                            const currentPixel = ctx.getImageData(
-                                x,
-                                y,
-                                1,
-                                1,
-                            ).data;
-                            totalPixels++;
-                            if (
-                                desiredPixel.r !== currentPixel[0] ||
-                                desiredPixel.g !== currentPixel[1] ||
-                                desiredPixel.b !== currentPixel[2]
-                            ) {
-                                ctx.fillStyle = `rgba(${desiredPixel.r}, ${desiredPixel.g}, ${desiredPixel.b}, 0.25)`;
-                                ctx.fillRect(x, y, 1, 1);
-                            } else {
-                                correctPixels++;
-                            }
-                        }
-                    }
-                    const progress = (correctPixels / totalPixels) * 100;
-                    progressBar.style.width = `${progress}%`;
-                    progressText.textContent = `${Math.round(progress)}%`;
-                    progressHistory.push(progress);
-                    drawTrendGraph();
+                    cachedDesiredState = desiredState;
+                    updateDesiredState(desiredState);
                 } catch (error) {
-                    console.error("Failed to update desired state:", error);
+                    console.error("Failed to fetch desired state:", error);
                 }
             }
 
-            function drawTrendGraph() {
+            function updateDesiredState(desiredState) {
+                if (!wantedResultOverlayCheckbox.checked) return;
+
+                let totalPixels = 0;
+                let correctPixels = 0;
+
+                for (let y = 0; y < desiredState.length; y++) {
+                    for (let x = 0; x < desiredState[y].length; x++) {
+                        const desiredPixel = desiredState[y][x];
+                        const currentPixel = ctx.getImageData(x, y, 1, 1).data;
+                        totalPixels++;
+                        if (
+                            desiredPixel.r !== currentPixel[0] ||
+                            desiredPixel.g !== currentPixel[1] ||
+                            desiredPixel.b !== currentPixel[2]
+                        ) {
+                            ctx.fillStyle = `rgba(${desiredPixel.r}, ${desiredPixel.g}, ${desiredPixel.b}, ${overlayOpacity})`;
+                            ctx.fillRect(x, y, 1, 1);
+                        } else {
+                            correctPixels++;
+                        }
+                    }
+                }
+                progressHistory.push((correctPixels / totalPixels) * 100);
+                updateTrendGraph();
+                updateProgressBar((correctPixels / totalPixels) * 100);
+            }
+
+            function updateTrendGraph() {
                 const ctx = trendGraph.getContext("2d");
                 const labels = progressHistory.map((_, index) => index + 1);
                 const data = {
@@ -353,9 +344,13 @@
                 trendChart = new Chart(ctx, config);
             }
 
+            function updateProgressBar(progress) {
+                progressBar.style.width = `${progress}%`;
+                progressText.textContent = `${progress.toFixed(2)}%`;
+            }
+
             async function placePixel(x, y, color) {
                 if (!canPlace) {
-                    status.textContent = "Please wait for the cooldown";
                     return;
                 }
 
@@ -378,19 +373,11 @@
                     const data = await response.json();
 
                     if (response.status === 429) {
-                        status.textContent = `Rate limited. Try again in ${data.try_in}s`;
                         canPlace = false;
                         clearTimeout(cooldownTimeout);
 
-                        cooldownBar.style.width = "0%";
-                        cooldownBar.dataset.duration = data.try_in * 1000;
-                        animationStart = null;
-                        requestAnimationFrame(animate);
-
                         cooldownTimeout = setTimeout(() => {
                             canPlace = true;
-                            status.textContent = "Ready";
-                            cooldownBar.style.width = "0%";
                         }, data.try_in * 1000);
 
                         await updateCanvas();
@@ -404,7 +391,6 @@
                     ctx.fillStyle = `rgb(${color.r}, ${color.g}, ${color.b})`;
                     ctx.fillRect(scaledX, scaledY, 1, 1);
                 } catch (error) {
-                    status.textContent = `Error: ${error.message}`;
                     console.error("Failed to place pixel:", error);
                     await updateCanvas();
                 }
@@ -418,9 +404,10 @@
                 placePixel(x, y, color);
             });
 
-            setInterval(updateCanvas, 2000);
-
-            updateCanvas();
+            setInterval(fetchCanvasState, 2000);
+            fetchCanvasState();
+            fetchBotOverlays();
+            fetchDesiredState();
         </script>
     </body>
 </html>
