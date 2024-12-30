@@ -58,6 +58,29 @@
             .bot-overlay:hover {
                 opacity: 0.8;
             }
+            #controls {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                margin: 10px;
+                padding: 10px;
+                background-color: white;
+                border-radius: 5px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            }
+            #progress {
+                width: 200px;
+                height: 20px;
+                background: #ddd;
+                border-radius: 5px;
+                overflow: hidden;
+                margin: 10px;
+            }
+            #progressBar {
+                width: 0%;
+                height: 100%;
+                background: #4caf50;
+            }
         </style>
     </head>
     <body>
@@ -67,12 +90,29 @@
         <canvas id="canvas" width="64" height="64"></canvas>
         <div id="status">Ready</div>
         <div id="cooldown"><div id="cooldownBar"></div></div>
+        <div id="controls">
+            <label>
+                <input type="checkbox" id="botJobStatus" checked />
+                Show Bot Job Status
+            </label>
+            <label>
+                <input type="checkbox" id="wantedResultOverlay" checked />
+                Show Wanted Result Overlay
+            </label>
+            <div id="progress"><div id="progressBar"></div></div>
+        </div>
         <script>
             const canvas = document.getElementById("canvas");
             const ctx = canvas.getContext("2d", { willReadFrequently: true });
             const colorPicker = document.getElementById("color");
             const status = document.getElementById("status");
             const cooldownBar = document.getElementById("cooldownBar");
+            const botJobStatusCheckbox =
+                document.getElementById("botJobStatus");
+            const wantedResultOverlayCheckbox = document.getElementById(
+                "wantedResultOverlay",
+            );
+            const progressBar = document.getElementById("progressBar");
 
             let canPlace = true;
             let cooldownTimeout;
@@ -101,6 +141,8 @@
             }
 
             async function updateBotOverlays() {
+                if (!botJobStatusCheckbox.checked) return;
+
                 try {
                     const response = await fetch(
                         "http://hackclub.app:38425/jobs",
@@ -169,6 +211,8 @@
             }
 
             async function updateDesiredState() {
+                if (!wantedResultOverlayCheckbox.checked) return;
+
                 try {
                     const response = await fetch(
                         "http://hackclub.app:38425/desired",
@@ -181,6 +225,9 @@
                         },
                     );
                     const desiredState = await response.json();
+                    let totalPixels = 0;
+                    let correctPixels = 0;
+
                     for (let y = 0; y < desiredState.length; y++) {
                         for (let x = 0; x < desiredState[y].length; x++) {
                             const desiredPixel = desiredState[y][x];
@@ -190,16 +237,21 @@
                                 1,
                                 1,
                             ).data;
+                            totalPixels++;
                             if (
                                 desiredPixel.r !== currentPixel[0] ||
                                 desiredPixel.g !== currentPixel[1] ||
                                 desiredPixel.b !== currentPixel[2]
                             ) {
-                                ctx.fillStyle = `rgba(${desiredPixel.r}, ${desiredPixel.g}, ${desiredPixel.b}, 0.75)`;
+                                ctx.fillStyle = `rgba(${desiredPixel.r}, ${desiredPixel.g}, ${desiredPixel.b}, 0.25)`;
                                 ctx.fillRect(x, y, 1, 1);
+                            } else {
+                                correctPixels++;
                             }
                         }
                     }
+                    const progress = (correctPixels / totalPixels) * 100;
+                    progressBar.style.width = `${progress}%`;
                 } catch (error) {
                     console.error("Failed to update desired state:", error);
                 }
