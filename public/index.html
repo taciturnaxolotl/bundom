@@ -75,13 +75,49 @@
                 border-radius: 5px;
                 overflow: hidden;
                 margin: 10px;
+                position: relative;
             }
             #progressBar {
                 width: 0%;
                 height: 100%;
                 background: #4caf50;
+                position: absolute;
+                top: 0;
+                left: 0;
+            }
+            #progressText {
+                position: absolute;
+                width: 100%;
+                text-align: center;
+                line-height: 20px;
+                color: #000;
+            }
+            #activeBots {
+                position: absolute;
+                top: 10px;
+                left: 10px;
+                color: red;
+                font-weight: bold;
+            }
+            #trendGraph {
+                width: 400px;
+                height: 200px;
+                margin: 20px;
+                background-color: white;
+                border-radius: 5px;
+                box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+                position: relative;
+            }
+            #trendGraphLabels {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                pointer-events: none;
             }
         </style>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </head>
     <body>
         <div id="colorPicker">
@@ -99,8 +135,14 @@
                 <input type="checkbox" id="wantedResultOverlay" checked />
                 Show Wanted Result Overlay
             </label>
-            <div id="progress"><div id="progressBar"></div></div>
+            <div id="progress">
+                <div id="progressBar"></div>
+                <div id="progressText">0%</div>
+            </div>
         </div>
+        <div id="activeBots">Active Bots: 0</div>
+        <canvas id="trendGraph"></canvas>
+        <div id="trendGraphLabels"></div>
         <script>
             const canvas = document.getElementById("canvas");
             const ctx = canvas.getContext("2d", { willReadFrequently: true });
@@ -113,11 +155,18 @@
                 "wantedResultOverlay",
             );
             const progressBar = document.getElementById("progressBar");
+            const progressText = document.getElementById("progressText");
+            const activeBots = document.getElementById("activeBots");
+            const trendGraph = document.getElementById("trendGraph");
+            const trendGraphLabels =
+                document.getElementById("trendGraphLabels");
 
             let canPlace = true;
             let cooldownTimeout;
             let cooldownInterval;
             let animationStart;
+            let progressHistory = [];
+            let trendChart;
 
             function hexToRgb(hex) {
                 const r = parseInt(hex.substr(1, 2), 16);
@@ -185,6 +234,8 @@
 
                         document.body.appendChild(overlay);
                     });
+
+                    activeBots.textContent = `Active Bots: ${jobs.botCount}`;
                 } catch (error) {
                     console.error("Failed to update bot overlays:", error);
                 }
@@ -252,9 +303,54 @@
                     }
                     const progress = (correctPixels / totalPixels) * 100;
                     progressBar.style.width = `${progress}%`;
+                    progressText.textContent = `${Math.round(progress)}%`;
+                    progressHistory.push(progress);
+                    drawTrendGraph();
                 } catch (error) {
                     console.error("Failed to update desired state:", error);
                 }
+            }
+
+            function drawTrendGraph() {
+                const ctx = trendGraph.getContext("2d");
+                const labels = progressHistory.map((_, index) => index + 1);
+                const data = {
+                    labels: labels,
+                    datasets: [
+                        {
+                            label: "Progress Over Time",
+                            data: progressHistory,
+                            borderColor: "#4caf50",
+                            fill: false,
+                        },
+                    ],
+                };
+                const config = {
+                    type: "line",
+                    data: data,
+                    options: {
+                        scales: {
+                            x: {
+                                title: {
+                                    display: true,
+                                    text: "Time",
+                                },
+                            },
+                            y: {
+                                title: {
+                                    display: true,
+                                    text: "Progress (%)",
+                                },
+                                min: 0,
+                                max: 100,
+                            },
+                        },
+                    },
+                };
+                if (trendChart) {
+                    trendChart.destroy();
+                }
+                trendChart = new Chart(ctx, config);
             }
 
             async function placePixel(x, y, color) {
