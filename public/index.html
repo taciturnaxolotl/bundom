@@ -195,7 +195,7 @@
                                 desiredPixel.g !== currentPixel[1] ||
                                 desiredPixel.b !== currentPixel[2]
                             ) {
-                                ctx.fillStyle = "rgba(255, 255, 255, 1)";
+                                ctx.fillStyle = `rgba(${desiredPixel.r}, ${desiredPixel.g}, ${desiredPixel.b}, 0.75)`;
                                 ctx.fillRect(x, y, 1, 1);
                             }
                         }
