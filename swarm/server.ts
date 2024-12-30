@@ -31,7 +31,7 @@ const bots: Map<string, BotInfo> = new Map();
 
 const state: { r: number; g: number; b: number }[][] = [];
 
-const file = await Bun.file("corgi.png").arrayBuffer();
+const file = await Bun.file("mushroom.png").arrayBuffer();
 const image = PNG.sync.read(Buffer.from(file));
 
 const desiredState: { r: number; g: number; b: number }[][] = [];
