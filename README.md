@@ -1,5 +1,5 @@
 <h1 align="center">
-    <img src="https://raw.githubusercontent.com/taciturnaxolotl/bundom/master/images/corgi.png" width="200" alt="Logo"/><br/>
+    <img src="https://raw.githubusercontent.com/taciturnaxolotl/bundom/master/.github/images/corgi.png" width="200" alt="Logo"/><br/>
     <img src="https://raw.githubusercontent.com/taciturnaxolotl/carriage/master/.github/images/transparent.png" height="45" width="0px"/>
     Bundom
     <img src="https://raw.githubusercontent.com/taciturnaxolotl/carriage/master/.github/images/transparent.png" height="30" width="0px"/>
